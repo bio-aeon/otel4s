@@ -92,6 +92,8 @@ object MetricPoints {
     def aggregationTemporality: AggregationTemporality
   }
 
+  sealed trait ExponentialHistogram extends MetricPoints {}
+
   /** Creates a [[Sum]] with the given values.
     */
   def sum[A <: PointData.NumberPoint](
