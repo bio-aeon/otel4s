@@ -170,6 +170,8 @@ object PointData {
 
   }
 
+  sealed trait ExponentialHistogram extends PointData {}
+
   /** Creates a [[LongNumber]] with the given values.
     */
   def longNumber(
