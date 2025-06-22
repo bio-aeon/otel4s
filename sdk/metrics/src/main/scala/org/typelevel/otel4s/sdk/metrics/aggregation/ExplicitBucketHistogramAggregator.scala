@@ -167,11 +167,11 @@ private object ExplicitBucketHistogramAggregator {
         }
       }
 
-    def record(value: A, attributes: Attributes, context: Context): F[Unit] = {
-      val doubleValue = toDouble(value)
-
+    def record(value: A, attributes: Attributes, context: Context): F[Unit] =
       reservoir.offer(value, attributes, context) >> stateRef.update { state =>
+        val doubleValue = toDouble(value)
         val idx = bucketIndex(doubleValue)
+
         state.copy(
           sum = state.sum + doubleValue,
           min = math.min(state.min, doubleValue),
@@ -180,7 +180,6 @@ private object ExplicitBucketHistogramAggregator {
           counts = state.counts.updated(idx, state.counts(idx) + 1)
         )
       }
-    }
 
     private def bucketIndex(value: Double): Int = {
       val idx = boundaries.boundaries.indexWhere(b => value <= b)

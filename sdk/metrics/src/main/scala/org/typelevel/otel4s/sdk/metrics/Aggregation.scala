@@ -46,6 +46,9 @@ object Aggregation {
     val Boundaries: BucketBoundaries = BucketBoundaries(
       0d, 5d, 10d, 25d, 50d, 75d, 100d, 250d, 500d, 750d, 1000d, 2500d, 5000d, 7500d, 10000d
     )
+
+    val ExponentialHistogramMaxBuckets = 160
+    val ExponentialHistogramMaxScale = 20
   }
 
   /** Drops all measurements and doesn't export any metric.
@@ -108,6 +111,47 @@ object Aggregation {
   def explicitBucketHistogram(boundaries: BucketBoundaries): Aggregation =
     ExplicitBucketHistogram(boundaries)
 
+  /** Aggregates measurements into a base-2
+    * [[org.typelevel.otel4s.sdk.metrics.data.MetricPoints.ExponentialHistogram MetricPoints.ExponentialHistogram]]
+    * using the default `maxBuckets` and `maxScale`.
+    *
+    * Compatible instruments:
+    *   - [[org.typelevel.otel4s.metrics.Counter Counter]]
+    *   - [[org.typelevel.otel4s.metrics.Histogram Histogram]]
+    */
+  def base2ExponentialBucketHistogram: Aggregation =
+    Base2ExponentialHistogram(
+      Defaults.ExponentialHistogramMaxBuckets,
+      Defaults.ExponentialHistogramMaxScale
+    )
+
+  /** Aggregates measurements into a base-2
+    * [[org.typelevel.otel4s.sdk.metrics.data.MetricPoints.ExponentialHistogram Data.ExponentialHistogram]]
+    * using the given `maxBuckets` and `maxScale`.
+    *
+    * Compatible instruments:
+    *   - [[org.typelevel.otel4s.metrics.Counter Counter]]
+    *   - [[org.typelevel.otel4s.metrics.Histogram Histogram]]
+    *
+    * @param maxBuckets
+    *   the max number of positive and negative buckets
+    *
+    * @param maxScale
+    *   the maximum and initial scale
+    */
+  def base2ExponentialBucketHistogram(
+      maxBuckets: Int,
+      maxScale: Int
+  ): Aggregation = {
+    require(maxBuckets >= 2, "maxBuckets must be >= 2")
+    require(
+      maxScale >= -10 && maxScale <= 20,
+      "maxScale must be -10 <= x <= 20"
+    )
+
+    Base2ExponentialHistogram(maxBuckets, maxScale)
+  }
+
   implicit val aggregationHash: Hash[Aggregation] =
     Hash.fromUniversalHashCode
 
@@ -119,6 +163,8 @@ object Aggregation {
       case LastValue => "Aggregation.LastValue"
       case ExplicitBucketHistogram(boundaries) =>
         show"Aggregation.ExplicitBucketHistogram{boundaries=$boundaries}"
+      case Base2ExponentialHistogram(maxBuckets, maxScale) =>
+        show"Aggregation.Base2ExponentialHistogram{maxBuckets=$maxBuckets, maxScale=$maxScale}"
     }
 
   private[metrics] sealed trait Synchronous { self: Aggregation => }
@@ -135,6 +181,12 @@ object Aggregation {
   private[metrics] final case class ExplicitBucketHistogram(
       boundaries: BucketBoundaries
   ) extends Aggregation(Compatability.ExplicitBucketHistogram)
+      with Synchronous
+
+  private[metrics] final case class Base2ExponentialHistogram(
+      maxBuckets: Int,
+      maxScale: Int
+  ) extends Aggregation(Compatability.Base2ExponentialHistogram)
       with Synchronous
 
   private object Compatability {
@@ -156,6 +208,9 @@ object Aggregation {
       Set(InstrumentType.Gauge, InstrumentType.ObservableGauge)
 
     val ExplicitBucketHistogram: Set[InstrumentType] =
+      Set(InstrumentType.Counter, InstrumentType.Histogram)
+
+    val Base2ExponentialHistogram: Set[InstrumentType] =
       Set(InstrumentType.Counter, InstrumentType.Histogram)
   }
 
