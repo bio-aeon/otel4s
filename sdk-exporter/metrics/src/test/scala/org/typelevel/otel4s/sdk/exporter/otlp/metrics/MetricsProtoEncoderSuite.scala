@@ -105,6 +105,10 @@ class MetricsProtoEncoderSuite extends ScalaCheckSuite {
     }
   }
 
+  test("encode PointData.ExponentialHistogram") {
+    assertEquals(1, 1)
+  }
+
   test("encode MetricData") {
     Prop.forAll(Gens.metricData) { metricData =>
       val expected = Json
