@@ -92,6 +92,21 @@ object MetricPoints {
     def aggregationTemporality: AggregationTemporality
   }
 
+  /** ExponentialHistogram represents the type of a metric that is calculated by aggregating all reported double
+    * measurements over a time interval into an exponentially-bucketed histogram, where bucket boundaries grow by a
+    * constant base-2 factor.
+    *
+    * @see
+    *   [[https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram]]
+    */
+  sealed trait ExponentialHistogram extends MetricPoints {
+    def points: NonEmptyVector[PointData.ExponentialHistogram]
+
+    /** The aggregation temporality of this aggregation.
+      */
+    def aggregationTemporality: AggregationTemporality
+  }
+
   /** Creates a [[Sum]] with the given values.
     */
   def sum[A <: PointData.NumberPoint](
@@ -115,6 +130,14 @@ object MetricPoints {
       aggregationTemporality: AggregationTemporality
   ): Histogram =
     HistogramImpl(points, aggregationTemporality)
+
+  /** Creates a [[ExponentialHistogram]] with the given values.
+    */
+  def exponentialHistogram(
+      points: NonEmptyVector[PointData.ExponentialHistogram],
+      aggregationTemporality: AggregationTemporality
+  ): ExponentialHistogram =
+    ExponentialHistogramImpl(points, aggregationTemporality)
 
   implicit val metricPointsHash: Hash[MetricPoints] = {
     val sumHash: Hash[Sum] =
@@ -187,5 +210,10 @@ object MetricPoints {
       points: NonEmptyVector[PointData.Histogram],
       aggregationTemporality: AggregationTemporality
   ) extends Histogram
+
+  private final case class ExponentialHistogramImpl(
+      points: NonEmptyVector[PointData.ExponentialHistogram],
+      aggregationTemporality: AggregationTemporality
+  ) extends ExponentialHistogram
 
 }

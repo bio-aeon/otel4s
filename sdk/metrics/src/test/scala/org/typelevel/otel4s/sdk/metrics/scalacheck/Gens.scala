@@ -229,6 +229,41 @@ trait Gens extends org.typelevel.otel4s.sdk.scalacheck.Gens {
     )
   }
 
+  val exponentialHistogramPointData: Gen[PointData.ExponentialHistogram] = {
+    for {
+      window <- timeWindow
+      attributes <- Gens.attributes
+      scale <- Gen.choose(-3, 7)
+      posValuesCount <- Gen.choose(1, 20)
+      posValues <- Gen.listOfN(posValuesCount, Gen.posNum[Double])
+      negValuesCount <- Gen.choose(1, 20)
+      negValues <- Gen.listOfN(negValuesCount, Gen.negNum[Double])
+      exemplars <- Gen.listOf(Gens.doubleExemplarData)
+    } yield {
+      val values = posValues ++ negValues
+      val sum = values.sum
+      val min = values.min
+      val max = values.max
+      val stats = PointData.ExponentialHistogram.Stats(
+        sum = sum,
+        min = min,
+        max = max,
+        zeroCount = values.count(_ == 0).toLong,
+        count = values.size.toLong
+      )
+
+      PointData.exponentialHistogram(
+        timeWindow = window,
+        attributes = attributes,
+        exemplars = exemplars.toVector,
+        scale = scale,
+        stats = Some(stats),
+        positiveBuckets = PointData.ExponentialHistogram.Buckets(scale, -1, Vector.empty),
+        negativeBuckets = PointData.ExponentialHistogram.Buckets(scale, -1, Vector.empty)
+      )
+    }
+  }
+
   val pointDataNumber: Gen[PointData.NumberPoint] =
     Gen.oneOf(longNumberPointData, doubleNumberPointData)
 

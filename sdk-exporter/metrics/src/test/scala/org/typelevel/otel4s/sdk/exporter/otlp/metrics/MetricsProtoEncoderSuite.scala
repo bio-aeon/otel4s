@@ -105,6 +105,26 @@ class MetricsProtoEncoderSuite extends ScalaCheckSuite {
     }
   }
 
+  test("encode PointData.ExponentialHistogram") {
+    Prop.forAll(Gens.exponentialHistogramPointData) { point =>
+      val expected = Json
+        .obj(
+          "attributes" := point.attributes,
+          "startTimeUnixNano" := point.timeWindow.start.toNanos.toString,
+          "timeUnixNano" := point.timeWindow.end.toNanos.toString,
+          "count" := point.stats.map(_.count.toString),
+          "sum" := point.stats.map(_.sum),
+          "min" := point.stats.map(_.min),
+          "max" := point.stats.map(_.max),
+          "exemplars" := (point.exemplars: Vector[ExemplarData])
+        )
+        .dropNullValues
+        .dropEmptyValues
+
+      assertEquals(ProtoEncoder.toJson(point), expected)
+    }
+  }
+
   test("encode MetricData") {
     Prop.forAll(Gens.metricData) { metricData =>
       val expected = Json
