@@ -106,6 +106,7 @@
     <li class="level2 nav-leaf"><a href="../instrumentation/metrics-cats-effect-io-runtime.html">Metrics | Cats Effect IO runtime</a></li>
     <li class="level2 nav-leaf"><a href="../instrumentation/tracing.html">Tracing</a></li>
     <li class="level2 nav-leaf"><a href="../instrumentation/tracing-cross-service-propagation.html">Tracing | Cross-service propagation</a></li>
+    <li class="level2 nav-leaf"><a href="../instrumentation/logs.html">Logs</a></li>
     <li class="level2 nav-leaf"><a href="../instrumentation/baggage.html">Baggage</a></li>
     <li class="level1 nav-header">Customization</li>
     <li class="level2 nav-leaf"><a href="../customization/histogram-custom-buckets/">Histogram custom buckets</a></li>
@@ -114,6 +115,7 @@
     <li class="level2 nav-leaf"><a href="../oteljava/metrics-jvm-runtime.html">Metrics | JVM Runtime</a></li>
     <li class="level2 nav-leaf"><a href="../oteljava/tracing-context-propagation.html">Tracing | Context propagation</a></li>
     <li class="level2 nav-leaf"><a href="../oteljava/tracing-java-interop.html">Tracing | Interop with Java-instrumented libraries</a></li>
+    <li class="level2 nav-leaf"><a href="../oteljava/agent.html">Zero-code | Java Agent</a></li>
     <li class="level2 nav-leaf"><a href="../oteljava/testkit.html">Testkit</a></li>
     <li class="level1 nav-header">SDK</li>
     <li class="level2 nav-leaf"><a href="overview.html">Overview</a></li>
@@ -154,6 +156,11 @@
     <li class="level2 nav-leaf"><a href="#batch-span-processor">Batch span processor</a></li>
     <li class="level2 nav-leaf"><a href="#sampler">Sampler</a></li>
     <li class="level2 nav-leaf"><a href="#span-limits">Span limits</a></li>
+    <li class="level1 nav-node"><a href="#logs">Logs</a></li>
+    <li class="level2 nav-leaf"><a href="#exporters-3">Exporters</a></li>
+    <li class="level2 nav-leaf"><a href="#otlp-exporter-3">OTLP exporter</a></li>
+    <li class="level2 nav-leaf"><a href="#batch-log-record-processor">Batch log record processor</a></li>
+    <li class="level2 nav-leaf"><a href="#log-record-limits">Log record limits</a></li>
   </ul>
 
   <p class="footer"></p>
@@ -163,7 +170,9 @@
       <main class="content">
 
         <h1 id="configuration" class="title">Configuration</h1>
-        <p>The <code>OpenTelemetrySdk.autoConfigured(...)</code> and <code>SdkTraces.autoConfigured(...)</code> rely on the environment variables and system properties to configure the SDK.</p>
+        <p>The <code>OpenTelemetrySdk.autoConfigured(...)</code>, <code>SdkMetrics.autoConfigured(...)</code>, 
+        <code>SdkTraces.autoConfigured(...)</code>, <code>SdkLogs.autoConfigured(...)</code>, 
+        rely on the environment variables and system properties to configure the SDK.</p>
         <p>There are several ways to configure the options:</p>
         <div class="tab-container" data-tab-group="sdk-options-source">
           <ul class="tab-group">
@@ -285,7 +294,7 @@
           <li>global: <code>otel.exporter.otlp.{x}</code></li>
           <li>target-specific: <code>otel.exporter.otlp.metrics.{x}</code></li>
         </ul>
-        <p>Global properties can be used to configure span and metric exporters simultaneously.
+        <p>Global properties can be used to configure span, metric, and log exporters simultaneously.
         Global <code>otel.exporter.otlp.endpoint</code> must be a <strong>base</strong> URL. The configurer automatically adds path (i.e. <code>v1/metrics</code>) to the URL.</p>
         <p>Target-specific properties are prioritized. E.g. <code>otel.exporter.otlp.metrics.endpoint</code> is prioritized over <code>otel.exporter.otlp.endpoint</code>.</p>
         <table>
@@ -490,7 +499,7 @@
           <li>global: <code>otel.exporter.otlp.{x}</code></li>
           <li>target-specific: <code>otel.exporter.otlp.traces.{x}</code></li>
         </ul>
-        <p>Global properties can be used to configure span and metric exporters simultaneously.
+        <p>Global properties can be used to configure span, metric, and log exporters simultaneously.
         Global <code>otel.exporter.otlp.endpoint</code> must be a <strong>base</strong> URL. The configurer automatically adds path (i.e. <code>v1/traces</code>) to the URL.</p>
         <p>Target-specific properties are prioritized. E.g. <code>otel.exporter.otlp.traces.endpoint</code> is prioritized over <code>otel.exporter.otlp.endpoint</code>.</p>
         <table>
@@ -533,7 +542,7 @@
               <td></td>
             </tr>
             <tr>
-              <td>otel.exporter.otlp.metrics.protocol</td>
+              <td>otel.exporter.otlp.traces.protocol</td>
               <td>OTEL_EXPORTER_OTLP_TRACES_PROTOCOL</td>
               <td>The transport protocol to use. Options include <code>grpc</code>, <code>http/protobuf</code>, and <code>http/json</code>. Default is <code>http/protobuf</code>.</td>
             </tr>
@@ -694,6 +703,165 @@
             <tr>
               <td>otel.span.attribute.value.length.limit</td>
               <td>OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT</td>
+              <td>The maximum allowed attribute value size. No limit by default.</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h2 id="logs" class="section"><a class="anchor-link left" href="#logs"><i class="icofont-laika link">&#xef71;</i></a>Logs</h2>
+        
+        <h3 id="exporters-3" class="section"><a class="anchor-link left" href="#exporters-3"><i class="icofont-laika link">&#xef71;</i></a>Exporters</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>System property</th>
+              <th>Environment variable</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>otel.logs.exporter</td>
+              <td>OTEL_LOGS_EXPORTER</td>
+              <td>List of exporters to be export spans, separated by commas. <code>none</code> means no autoconfigured exporter. Default is <code>otlp</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Options supported out of the box:</p>
+        <ul>
+          <li><code>otlp</code> - requires <code>otel4s-sdk-exporter</code> dependency.</li>
+          <li><code>console</code> - prints the content of the log record to stdout. It&#39;s mainly used for testing and debugging.</li>
+          <li><code>none</code> - means no autoconfigured exporter.</li>
+        </ul>
+        
+        <h3 id="otlp-exporter-3" class="section"><a class="anchor-link left" href="#otlp-exporter-3"><i class="icofont-laika link">&#xef71;</i></a>OTLP exporter</h3>
+        <p>The exporter can be configured by two sets of settings:</p>
+        <ul>
+          <li>global: <code>otel.exporter.otlp.{x}</code></li>
+          <li>target-specific: <code>otel.exporter.otlp.logs.{x}</code></li>
+        </ul>
+        <p>Global properties can be used to configure span, metric, and log exporters simultaneously.
+        Global <code>otel.exporter.otlp.endpoint</code> must be a <strong>base</strong> URL. The configurer automatically adds path (i.e. <code>v1/logs</code>) to the URL.</p>
+        <p>Target-specific properties are prioritized. E.g. <code>otel.exporter.otlp.logs.endpoint</code> is prioritized over <code>otel.exporter.otlp.endpoint</code>.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>System property</th>
+              <th>Environment variable</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>otel.exporter.otlp.protocol</td>
+              <td>OTEL_EXPORTER_OTLP_PROTOCOL</td>
+              <td>The transport protocol to use. Options include <code>grpc</code>, <code>http/protobuf</code>, and <code>http/json</code>. Default is <code>http/protobuf</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.endpoint</td>
+              <td>OTEL_EXPORTER_OTLP_ENDPOINT</td>
+              <td>The OTLP traces, metrics, and logs endpoint to connect to. Must be a <strong>base</strong> URL with a scheme of either http or https based on the use of TLS. Default is <code>http://localhost:4318/</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.headers</td>
+              <td>OTEL_EXPORTER_OTLP_HEADERS</td>
+              <td>Key-value pairs separated by commas to pass as request headers on OTLP trace, metric, and log requests.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.compression</td>
+              <td>OTEL_EXPORTER_OTLP_COMPRESSION</td>
+              <td>The compression type to use on OTLP trace, metric, and log requests. Options include gzip. By default, no compression will be used.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.timeout</td>
+              <td>OTEL_EXPORTER_OTLP_TIMEOUT</td>
+              <td>The maximum waiting time to send each OTLP trace, metric, and log batch. Default is <code>10 seconds</code>.</td>
+            </tr>
+            <tr>
+              <td><strong>Target specific:</strong></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.logs.protocol</td>
+              <td>OTEL_EXPORTER_OTLP_LOGS_PROTOCOL</td>
+              <td>The transport protocol to use. Options include <code>grpc</code>, <code>http/protobuf</code>, and <code>http/json</code>. Default is <code>http/protobuf</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.logs.endpoint</td>
+              <td>OTEL_EXPORTER_OTLP_LOGS_ENDPOINT</td>
+              <td>The OTLP logs endpoint to connect to. Default is <code>http://localhost:4318/v1/logs</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.logs.headers</td>
+              <td>OTEL_EXPORTER_OTLP_LOGS_HEADERS</td>
+              <td>Key-value pairs separated by commas to pass as request headers on OTLP trace requests.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.logs.compression</td>
+              <td>OTEL_EXPORTER_OTLP_LOGS_COMPRESSION</td>
+              <td>The compression type to use on OTLP trace requests. Options include gzip. By default, no compression will be used.</td>
+            </tr>
+            <tr>
+              <td>otel.exporter.otlp.logs.timeout</td>
+              <td>OTEL_EXPORTER_OTLP_LOGS_TIMEOUT</td>
+              <td>The maximum waiting time to send each OTLP trace batch. Default is <code>10 seconds</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h3 id="batch-log-record-processor" class="section"><a class="anchor-link left" href="#batch-log-record-processor"><i class="icofont-laika link">&#xef71;</i></a>Batch log record processor</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>System property</th>
+              <th>Environment variable</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>otel.blrp.schedule.delay</td>
+              <td>OTEL_BLRP_SCHEDULE_DELAY</td>
+              <td>The interval between two consecutive exports. Default is <code>5 seconds</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.blrp.max.queue.size</td>
+              <td>OTEL_BLRP_MAX_QUEUE_SIZE</td>
+              <td>The maximum queue size. Default is <code>2048</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.blrp.max.export.batch.size</td>
+              <td>OTEL_BLRP_MAX_EXPORT_BATCH_SIZE</td>
+              <td>The maximum batch size. Default is <code>512</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.blrp.export.timeout</td>
+              <td>OTEL_BLRP_EXPORT_TIMEOUT</td>
+              <td>The maximum allowed time to export data. Default is <code>30 seconds</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h3 id="log-record-limits" class="section"><a class="anchor-link left" href="#log-record-limits"><i class="icofont-laika link">&#xef71;</i></a>Log record limits</h3>
+        <p>These properties can be used to control the maximum size of log records by placing limits on attributes.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>System property</th>
+              <th>Environment variable</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>otel.attribute.count.limit</td>
+              <td>OTEL_ATTRIBUTE_COUNT_LIMIT</td>
+              <td>The maximum allowed log attribute count. Default is <code>128</code>.</td>
+            </tr>
+            <tr>
+              <td>otel.attribute.value.length.limit</td>
+              <td>OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT</td>
               <td>The maximum allowed attribute value size. No limit by default.</td>
             </tr>
           </tbody>
