@@ -142,6 +142,22 @@ private object MetricsProtoEncoder {
     )
   }
 
+  implicit val exponentialHistogramPointEncoder: ProtoEncoder[
+    PointData.ExponentialHistogram,
+    Proto.ExponentialHistogramDataPoint
+  ] = { point =>
+    Proto.ExponentialHistogramDataPoint(
+      attributes = ProtoEncoder.encode(point.attributes),
+      startTimeUnixNano = point.timeWindow.start.toNanos,
+      timeUnixNano = point.timeWindow.end.toNanos,
+      count = point.stats.map(_.count).getOrElse(0L),
+      sum = point.stats.map(_.sum),
+      exemplars = point.exemplars.map(ProtoEncoder.encode(_)),
+      min = point.stats.map(_.min),
+      max = point.stats.map(_.max)
+    )
+  }
+
   implicit val metricPointsEncoder: ProtoEncoder[
     MetricPoints,
     Proto.Metric.Data
@@ -165,6 +181,41 @@ private object MetricsProtoEncoder {
         Proto.Histogram(
           histogram.points.toVector.map(ProtoEncoder.encode(_)),
           ProtoEncoder.encode(histogram.aggregationTemporality)
+        )
+      )
+
+    case exponentialHistogram: MetricPoints.ExponentialHistogram =>
+      Proto.Metric.Data.ExponentialHistogram(
+        Proto.ExponentialHistogram(
+          exponentialHistogram.points.toVector.map(p =>
+            Proto
+              .ExponentialHistogramDataPoint(
+                attributes = ProtoEncoder.encode(p.attributes),
+                startTimeUnixNano = p.timeWindow.start.toNanos,
+                timeUnixNano = p.timeWindow.end.toNanos,
+                count = p.stats.map(_.count).getOrElse(0L),
+                sum = p.stats.map(_.sum),
+                scale = p.scale,
+                zeroCount = p.stats.map(_.zeroCount).getOrElse(0L),
+                positive = Some(
+                  Proto.ExponentialHistogramDataPoint.Buckets(
+                    p.positiveBuckets.offset,
+                    p.positiveBuckets.counts
+                  )
+                ),
+                negative = Some(
+                  Proto.ExponentialHistogramDataPoint.Buckets(
+                    p.negativeBuckets.offset,
+                    p.negativeBuckets.counts
+                  )
+                ),
+                exemplars = p.exemplars.map(ProtoEncoder.encode(_)),
+                min = p.stats.map(_.min),
+                max = p.stats.map(_.max),
+                // zeroThreshold = , // todo?
+              )
+          ),
+          ProtoEncoder.encode(exponentialHistogram.aggregationTemporality)
         )
       )
   }
